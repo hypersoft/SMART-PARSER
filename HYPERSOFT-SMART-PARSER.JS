@@ -77,7 +77,7 @@ function SmartParserRule(rule, name) {
 SmartParserRule.prototype = {
 	constructor: SmartParserRule,
 	toString: function(){return this.name;},
-	match: function(state, stack) { // for the matching of the rule with the curent-state
+	match: function(state, stack) { // for the matching of the rule with the cuRrent-state
 		state.track(this);
 		if (this.method === smartParserFunctionRule) { // for the function-type
 			var match = this.rule(state); // "returning": text: match or null
@@ -130,7 +130,7 @@ var OR = 'OR',
 
 function SmartParserSequence(list, name) {
 
-	if (this.constructor != SmartParserSequence) return new SmartParserSequence(method, list, name);
+	if (this.constructor != SmartParserSequence) return new SmartParserSequence(list, name);
 
 	if (list.length < 3)
 		throw new Error('CREATE: SMART-PARSER-SEQUENCE: MINIMUM-SEQUENCING: 2-RULES AND 1-METHOD.');
