@@ -1,4 +1,4 @@
-## SMART-PARSER
+## :SMART-PARSER
 
 ### for these examples of this contrivance-case-claim are for your learning of the basic-usage with the technology.
 
@@ -27,6 +27,7 @@ while (! parser.endOfStream) {
 // for this example: possibility-sequence [optional-sequence-claim]
 var NOTHING = SmartParserRule('', 'VOID');
 var wordSpace = SmartParserRule(' ', 'WORD-BREAKING-SPACE');
+var term = SmartParserRule(/^[^\s]+/, 'TERM')
 var wordBreak = new SmartParserSequence([wordSpace, OR, NOTHING], 'WORD-BREAK');
 var neverFails = new SmartParserSequence([term, AND, wordBreak], "SPEECH");
 
