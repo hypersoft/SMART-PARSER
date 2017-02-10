@@ -112,6 +112,7 @@ SmartParserRule.prototype = {
 function SmartParserToken(state, data, selector) { // for the capturing of the data and metrics within the current-state
 	state.synchronize(this); // for the copying of the state's-metrics
 	this.data = data, this.selector = selector;
+	this.claim = state.fault; // for the knowledge-record of the how with this data for this selector
 	state.scan(data.length); // for the moving of the location of the stream-state
 	state.track(); // for the voiding of the selector-blame
 }
@@ -119,7 +120,9 @@ function SmartParserToken(state, data, selector) { // for the capturing of the d
 SmartParserToken.prototype = {
 	constructor: SmartParserToken,
 	toString: function(){return this.data;}, // for the treatment of this compound as a string
-	combine: function(stack) { // for the lossless-compiling of a single-token with the multiple-tokens
+	combine: function(stack) { // for the lossy-compiling of a single-token with the multiple-tokens
+		// for the claim of the lossy with this operation is for the loss
+		// of the selector-field-data
 		var location;
 		for (location = 0; location < stack.length; location++) {
 			var element = stack[location];
