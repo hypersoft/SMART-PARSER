@@ -23,8 +23,8 @@ SmartParserState.prototype = {
 	constructor: SmartParserState,
 	synchronize: function(thing) { // for the synchronization of this state's-metrics
 		// :number-type-synchronization-only: voiding: "undefined" and others [:SmartParserState.prototype.synchronize.call(): safety-measure]
-		if (typeof this.location === jsNumberType) thing.location = this.location,
-		if (typeof this.line === jsNumberType) thing.line = this.line,
+		if (typeof this.location === jsNumberType) thing.location = this.location;
+		if (typeof this.line === jsNumberType) thing.line = this.line;
 		if (typeof this.column === jsNumberType) thing.column = this.column;
 		return thing;
 	},
@@ -122,7 +122,7 @@ SmartParserToken.prototype = {
 	toString: function(){return this.data;}, // for the treatment of this compound as a string
 	combine: function(stack) { // for the lossy-compiling of a single-token with the multiple-tokens
 		// for the claim of the lossy with this operation is for the loss
-		// of the selector-field-data
+		// of the selector-field-data and sub-item-claim-field-data
 		var location;
 		for (location = 0; location < stack.length; location++) {
 			var element = stack[location];
