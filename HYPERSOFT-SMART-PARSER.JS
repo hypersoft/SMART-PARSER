@@ -265,6 +265,9 @@ SmartParser.prototype = {
 			else stack.splice(location);
 		}
 		SmartParserState.prototype.synchronize.call(thing, this.state);
+		if (thing.path) { // for the synchronization of a possible-path.
+			state.path = thing.path.slice(0);
+		}
 	},
 	"parse": function(sequence, stack) { // for the verbose-matching with a sequence or rule
 		// for the getting of the parsings is with the supplying of a stack
