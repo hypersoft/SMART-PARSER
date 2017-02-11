@@ -40,3 +40,53 @@ while (! parser.endOfStream) {
 }
 
 ```
+
+### :third-example
+
+```javascript
+// for this example: token-certification: tokenization with a validation-match
+var NOTHING = SmartParserRule('', 'VOID');
+var wordSpace = SmartParserRule(' ', 'WORD-SPACE');
+var fullColon = SmartParserRule(':', 'FULL-COLON');
+
+var position = SmartParserRule([
+	/^[^\s]+/, // for the keyword-tokenization with the automatic-token-fault-tracking
+	/^(BY|FOR|OF|WITHIN|WITH|AS|AFTER|BEFORE|ON|IN|OUT|THROUGH)$/i // for the validation
+], 'POSITION');
+
+var lodial = SmartParserRule([
+	/^[^\s]+/, // for the keyword-tokenization with the automatic-token-fault-tracking
+	/^(ANY|AN|A|MY|YOUR|HER|HIS|OUR|THEIR|THIS|THAT|THESE|THE|THOSE|OTHER)$/i // for the validation
+], 'LODIAL');
+
+var fact = SmartParserRule(/^[^\s:]+/, 'FACT-TERM'); // for the tokenization-only
+
+var possibleWordSpace = new SmartParserSequence([wordSpace, OR, NOTHING], 'WORD-BREAK');
+
+var continuingFactPhrase = new SmartParserSequence([fullColon, wordSpace, fact, AND, possibleWordSpace], 'CONTINUING-FACT-PHRASE');
+var semiFactPhrase = SmartParserSequence([fullColon, fact, AND, possibleWordSpace], 'SEMI-FACT-PHRASE'); // for the tokenization-only
+var fullFactPhrase = new SmartParserSequence([position, wordSpace, lodial, wordSpace, fact, AND, possibleWordSpace], "FACT-PHRASE");
+
+var factPhrase = new SmartParserSequence([continuingFactPhrase, semiFactPhrase, OR, fullFactPhrase])
+
+var stack = [], parser = new SmartParser(":EXAMPLE: CLAIM: GOING OFF THIS CLIFF");
+
+// ":[FOR THIS ]EXAMPLE"
+parser.parse(factPhrase, stack);
+console.log(stack);
+stack = []; // :clearing-stack
+
+// ":[OF/WITH THE/THIS] CLAIM"
+parser.parse(factPhrase, stack);
+console.log(stack);
+stack = []; // :clearing-stack
+
+// ":[OF THE/THIS] GOING"
+parser.parse(factPhrase, stack);
+console.log(stack);
+stack = []; // :clearing-stack
+
+// "OFF THIS CLIFF"
+parser.parse(factPhrase, stack);
+// :fault: for the tokenization of the 'OFF' is with the lack of the position-term-certification.
+```
