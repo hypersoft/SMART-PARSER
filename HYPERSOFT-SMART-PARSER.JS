@@ -29,7 +29,9 @@ SmartParserState.prototype = {
 		return thing;
 	},
 	get clone() { // for the creation of a shadow-state for the examinations with the rules and sequences
-		return this.synchronize(new SmartParserState(this.data, this.tabSpaces));
+		var clone = this.synchronize(new SmartParserState(this.data, this.tabSpaces));
+		clone.path = this.path.slice(0);
+		return clone;
 	},
 	get stream() { // for the getting of the current-sequence
 		return this.data.substr(this.location);
@@ -63,15 +65,31 @@ var smartParserFunctionRule = 'function',
 	smartParserStringRule = 'string',
 	smartParserCompoundRule = 'object';
 
+
 function SmartParserRule(rule, name) {
 
 	if (this.constructor !== SmartParserRule) return new SmartParserRule(rule, name);
 	
-	this.rule = rule, this.name = name, this.method = typeof rule;
+	this.method = typeof rule;
 	
-	// for the rule-type-validation: "Regular Expression", Function OR String
+	this.rule = rule, this.name = name
+
 	if (this.method == smartParserCompoundRule) {
-		if (rule.constructor != RegExp) throw new Error('CREATE: SMART-PARSER-RULE: WRONG-RULE-TYPE.');
+		if (rule.constructor === Array) {
+			// for the rule-type-validation: ["Regular Expression", AND "Regular Expression", OR Function]
+			this.rule = rule[0];
+			this.verification = typeof rule[1];
+			this.verify = rule[1];
+			if (this.verification != smartParserFunctionRule && this.verification != smartParserCompoundRule)
+				throw new Error('CREATE: SMART-PARSER-RULE: WRONG-RULE-VERIFICATION-TYPE.');
+			if (this.verification === smartParserCompoundRule && this.verify.constructor != RegExp)
+				throw new Error('CREATE: SMART-PARSER-RULE: WRONG-RULE-VERIFICATION-TYPE.');
+		}
+	}
+		
+	// for the rule-type-validation: "Regular Expression", Function, OR String
+	if (this.method == smartParserCompoundRule) {
+		if (this.rule.constructor != RegExp) throw new Error('CREATE: SMART-PARSER-RULE: WRONG-RULE-TYPE.');
 	} else if (this.method !== smartParserStringRule && this.method !== smartParserFunctionRule) {
 		throw new Error('CREATE: SMART-PARSER-RULE: WRONG-RULE-TYPE.');
 	}
@@ -100,6 +118,18 @@ SmartParserRule.prototype = {
 		} else { // for the logical/mathematical-compound-sequence-claim [regular expression]
 			var match = this.rule.exec(state.stream);
 			if (match) {
+				if (this.verification) {
+					if (this.verification === smartParserFunctionRule)
+						match = this.verify(state, match); // for the verification-function: manual-token-tracking
+					else {
+						var tokenClaim = match[0];
+						match = this.verify.exec(tokenClaim);
+						if (! match) {
+							state.track("`"+tokenClaim+"'"); // :automatic-token-tracking
+							return null;
+						}
+					}
+				}
 				var token = new SmartParserToken(state, match[0], this);
 				if (stack) { stack.push(token); return true; }
 				return token;
@@ -148,7 +178,9 @@ function SmartParserSequence(list, name) { // for the sequencing of the rules
 
 	for (var location in list) {
 		var element = list[location];
-		if (element.constructor !== SmartParserSequence && element.constructor != SmartParserRule)
+		if (! element )
+			throw new Error('CREATE: SMART-PARSER-SEQUENCE: LIST-ELEMENT: '+location+': VOID-ELEMENT-CLAIM.');
+		else if (element.constructor !== SmartParserSequence && element.constructor != SmartParserRule)
 			throw new Error('CREATE: SMART-PARSER-SEQUENCE: LIST-ELEMENT: '+location+': WRONG-ELEMENT-TYPE.');
 	}
 	
@@ -161,7 +193,7 @@ SmartParserSequence.prototype = {
 	constructor: SmartParserSequence,
 	toString: function(){return this.name;}, // for the treatment of this compound as a string
 	match: function(state, stack){ // for the matching of the rules
-		state.track(this);
+		if (this.name) state.track(this);
 		if (this.method === AND) { // for the and-operations
 			for (var item = 0; item < this.list.length; item++) {
 				var rule = this.list[item];
@@ -169,16 +201,31 @@ SmartParserSequence.prototype = {
 					throw new ParsingFault(state.status+'; WITH THE PARSING OF THE '+state.fault+'.');
 			}
 		} else { // for the or-operations
-			var match;
-			for (var item = 0; item < this.list.length; item++) {
+			var item = 0, length = this.list.length, match;
+			var position = state.clone, trial = [];
+			for (; item < length; item++) {
 				var rule = this.list[item];
-				if (match = rule.match(state, stack)) break;
-				else state.track(); // for the voiding of the trial-blaming
+				try {
+					if (match = rule.match(position, trial)) {
+						position.synchronize(state);
+						Array.prototype.push.apply(stack, trial);
+						break;
+					}
+				} catch (matchError) {
+					if (item === (length - 1)){
+						position.synchronize(state);
+						state.path = position.path.slice(0);
+					} else {
+					position = state.clone;
+					trial = [];
+					continue;
+					}
+				}
 			}
-			if (! match)
+			if (! match )
 				throw new ParsingFault(state.status+'; WITH THE PARSING OF THE '+state.fault+'.');
 		}	
-		state.track() // for the voiding of the self-blaming
+		if (this.name) state.track() // for the voiding of the self-blaming
 		return true;
 	}
 }
@@ -197,9 +244,9 @@ SmartParser.prototype = {
 	},
 	load: function(data, tabSpaces) { // for the taking of the new-data
 		delete this.state;
-		this.state = new SmartParserState(data, tabSpaces);
+		this.state = new SmartParserState(String(data), tabSpaces);
 	},
-	synchronizeStateWith: function(thing) { // for the forwards and backwards: synchronization of this state with a token or shadow-state
+	synchronizeStateWith: function(thing, stack) { // for the forwards and backwards: synchronization of this state with a token or shadow-state
 		/*
 			for the synchronization of this state with a token is for the voiding
 			of the state-modifications of the successful-parsing of the token.
@@ -207,8 +254,16 @@ SmartParser.prototype = {
 			["COMMON-ENGLISH-THINKING" OF THE ABOVE-CLAIM]
 			:"I tried it[=(rule/sequence)-match], but I didn't like/want it[=(rule/sequence)-match-success],
 			so [re]turn to the start[=location] of it[=(rule/sequence)-match-token]".
-			[it=pronoun=(supposition/opinion: void-of-fact: fiction), re=again (a+gain)=no-gain, turn=go]	
+			[it=pronoun=(supposition/opinion: void-of-fact: fiction), re=again (a+gain)=no-gain, turn=go]
+			
+			for the supplying of the stack is for the synchronization of the stack.	
 		*/
+		if (stack) {
+			var location = stack.indexOf(thing);
+			if (location === -1)
+				throw new Error('SMART-PARSER: SYNCHRONIZE-STATE WITH THE STACK: FOREIGN-STACK-SYNCHRONIZATION-TOKEN.');
+			else stack.splice(location);
+		}
 		SmartParserState.prototype.synchronize.call(thing, this.state);
 	},
 	"parse": function(sequence, stack) { // for the verbose-matching with a sequence or rule
