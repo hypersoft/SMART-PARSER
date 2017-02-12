@@ -152,6 +152,15 @@ SmartParserRule.prototype = {
 				if (this.verification) {
 					if (this.verification === smartParserFunctionRule)
 						match = this.verify.call(this.functionParent || this, state, stack, this, match);
+						// :"returning": text: match or null; arguments: state, stack, rule;
+						// with a parent-"object" for the calling of the function-rule as a method
+						// of the parent-"object".
+						if (! match) {
+							if (this.faultTokenizer) tokenClaim = this.faultToken(state);
+							else tokenClaim = ": FAULT: `"+tokenClaim+"'";
+							state.track(state.path.pop()+tokenClaim);
+							return null;
+						}			
 					else {
 						var tokenClaim = match[0];
 						match = this.verify.exec(tokenClaim);
@@ -161,9 +170,10 @@ SmartParserRule.prototype = {
 							state.track(state.path.pop()+tokenClaim);
 							return null;
 						}
+						match = match[0];
 					}
 				}
-				var token = new SmartParserToken(state, match[0], this);
+				var token = new SmartParserToken(state, match, this);
 				if (stack) { stack.push(token); return true; }
 				return token;
 			}		}
