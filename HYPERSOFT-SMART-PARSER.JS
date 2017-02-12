@@ -133,7 +133,9 @@ SmartParserRule.prototype = {
 				if (stack) { stack.push(token); return true; }
 				return token;
 			} else {
-				state.track(state.path.pop()+": `"+data+"'");
+				if (this.faultTokenizer) data = this.faultToken(state);
+				else data = ": FAULT: `"+data+"'";
+				state.track(state.path.pop()+": `"+this.rule+"'"+data);
 			}
 		} else { // for the logical/mathematical-compound-sequence-claim [regular expression]
 			var match = this.rule.exec(state.stream);
@@ -257,7 +259,7 @@ SmartParserSequence.prototype = {
 							position.synchronize(state);
 							Array.prototype.push.apply(stack, trial);
 							break;
-						}
+						} else position.track();
 					} catch (matchError) {
 						if (item === (length - 1)){
 							if (iteration > 1) {
