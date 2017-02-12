@@ -70,6 +70,13 @@ function SmartParserRule(rule, name) {
 
 	if (this.constructor !== SmartParserRule) return new SmartParserRule(rule, name);
 	
+	if (arguments.length === 3) {
+		this.faultTokenizer = arguments[1];
+		if (typeof this.faultTokenzier != smartParserCompoundRule && this.faultTokenizer.constructor != SmartParserRule)
+			throw new Error('CREATE: SMART-PARSER-RULE: WRONG-FAULT-TOKENIZATION-TYPE.');
+		name = arguments[2];
+	}
+	
 	this.method = typeof rule;
 	
 	this.rule = rule, this.name = name
@@ -99,14 +106,25 @@ function SmartParserRule(rule, name) {
 SmartParserRule.prototype = {
 	constructor: SmartParserRule,
 	toString: function(){return this.name;},
+	faultToken: function(state) {
+		if (this.faultTokenizer) {
+			var trial = [], position = state.clone;
+			var token = this.faultTokenizer.match(position, trial);
+			return ": FAULT: `"+token.data+"'";
+		}
+	},
 	match: function(state, stack) { // for the matching of the rule with the current-state
-		state.track(this);
+		state.track(this.name);
 		if (this.method === smartParserFunctionRule) { // for the function-type
-			var match = this.rule(state); // "returning": text: match or null
+			var match = this.rule(state, stack, this); // "returning": text: match or null
 			if (match) {
 				var token = new SmartParserToken(state, match, this);
 				if (stack) { stack.push(token); return true; }
 				return token;
+			} else {
+				if (this.faultTokenizer) {
+					state.track(state.path.pop()+this.faultToken(state));
+				}
 			}
 		} else if (this.method === smartParserStringRule) { // for the string-type
 			var data = state.streamPart(this.rule.length);
@@ -114,6 +132,8 @@ SmartParserRule.prototype = {
 				var token = new SmartParserToken(state, data, this);
 				if (stack) { stack.push(token); return true; }
 				return token;
+			} else {
+				state.track(state.path.pop()+": `"+data+"'");
 			}
 		} else { // for the logical/mathematical-compound-sequence-claim [regular expression]
 			var match = this.rule.exec(state.stream);
@@ -125,7 +145,9 @@ SmartParserRule.prototype = {
 						var tokenClaim = match[0];
 						match = this.verify.exec(tokenClaim);
 						if (! match) {
-							state.track("`"+tokenClaim+"'"); // :automatic-token-tracking
+							if (this.faultTokenizer) tokenClaim = this.faultToken(state);
+							else tokenClaim = ": FAULT: `"+tokenClaim+"'";
+							state.track(state.path.pop()+tokenClaim);
 							return null;
 						}
 					}
@@ -133,8 +155,7 @@ SmartParserRule.prototype = {
 				var token = new SmartParserToken(state, match[0], this);
 				if (stack) { stack.push(token); return true; }
 				return token;
-			}
-		}
+			}		}
 		return null;
 	}
 }
