@@ -91,7 +91,7 @@ parser.parse(factPhrase, stack);
 // :fault: for the tokenization of the 'OFF' is with the lack of the position-term-certification.
 ```
 
-### fourth-example
+### :fourth-example
 
 ```javascript
 // for this example: sequence-collation [repeating sequence: see "var factPhrase": sequence-rules]
