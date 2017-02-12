@@ -152,8 +152,8 @@ SmartParserRule.prototype = {
 				if (this.verification) {
 					if (this.verification === smartParserFunctionRule)
 						match = this.verify.call(this.functionParent || this, state, stack, this, match);
-						// :"returning": text: match or null; arguments: state, stack, rule;
-						// with a parent-"object" for the calling of the function-rule as a method
+						// :"returning": text: match or null; arguments: state, stack, rule, match[];
+						// with a parent-"object" for the calling of the rule-verification-function as a method
 						// of the parent-"object".
 						if (! match) {
 							if (this.faultTokenizer) tokenClaim = this.faultToken(state);
