@@ -76,6 +76,12 @@ function SmartParserRule(rule, name) {
 			throw new Error('CREATE: SMART-PARSER-RULE: WRONG-FAULT-TOKENIZATION-TYPE.');
 		name = arguments[2];
 	}
+
+	// :argument(1): stack: [Function, Object]: for the function-rule with a parent-"object".	
+	if (typeof rule === smartParserCompoundRule && rule.constructor === Array && rule.length === 2 && typeof rule[0] === smartParserFunctionRule && typeof rule[1] === smartParserCompoundRule) {
+		this.functionParent = rule[1];
+		rule = rule[0];
+	}
 	
 	this.method = typeof rule;
 	
@@ -116,7 +122,10 @@ SmartParserRule.prototype = {
 	match: function(state, stack) { // for the matching of the rule with the current-state
 		state.track(this.name);
 		if (this.method === smartParserFunctionRule) { // for the function-type
-			var match = this.rule(state, stack, this); // "returning": text: match or null
+			var match = this.rule.call(this.functionParent || this, state, stack, this);
+			// :"returning": text: match or null; arguments: state, stack, rule;
+			// with a parent-"object" for the calling of the function-rule as a method
+			// of the parent-"object".
 			if (match) {
 				var token = new SmartParserToken(state, match, this);
 				if (stack) { stack.push(token); return true; }
@@ -142,7 +151,7 @@ SmartParserRule.prototype = {
 			if (match) {
 				if (this.verification) {
 					if (this.verification === smartParserFunctionRule)
-						match = this.verify(state, match); // for the verification-function: manual-token-tracking
+						match = this.verify(state, stack, this, match);
 					else {
 						var tokenClaim = match[0];
 						match = this.verify.exec(tokenClaim);
