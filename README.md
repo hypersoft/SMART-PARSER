@@ -90,3 +90,36 @@ stack = []; // :clearing-stack
 parser.parse(factPhrase, stack);
 // :fault: for the tokenization of the 'OFF' is with the lack of the position-term-certification.
 ```
+
+### fourth-example
+
+```javascript
+// for this example: sequence-collation [repeating sequence: see "var factPhrase": sequence-rules]
+var NOTHING = SmartParserRule('', 'VOID');
+var wordSpace = SmartParserRule(' ', 'WORD-SPACE');
+var fullColon = SmartParserRule(':', 'FULL-COLON');
+
+var position = SmartParserRule([
+	/^[^\s]+/, // for the keyword-tokenization with the automatic-token-fault-tracking
+	/^(BY|FOR|OF|WITHIN|WITH|AS|AFTER|BEFORE|ON|IN|OUT|THROUGH)$/i // for the validation
+], 'POSITION');
+
+var lodial = SmartParserRule([
+	/^[^\s]+/, // for the keyword-tokenization with the automatic-token-fault-tracking
+	/^(ANY|AN|A|MY|YOUR|HER|HIS|OUR|THEIR|THIS|THAT|THESE|THE|THOSE|OTHER)$/i // for the validation
+], 'LODIAL');
+
+var fact = SmartParserRule(/^[^\s:]+/, 'FACT-TERM'); // for the tokenization-only
+
+var possibleWordSpace = new SmartParserSequence([wordSpace, OR, NOTHING], 'WORD-BREAK');
+
+var continuingFactPhrase = new SmartParserSequence([fullColon, wordSpace, fact, AND, possibleWordSpace], 'CONTINUING-FACT-PHRASE');
+var semiFactPhrase = SmartParserSequence([fullColon, fact, AND, possibleWordSpace], 'SEMI-FACT-PHRASE'); // for the tokenization-only
+var fullFactPhrase = new SmartParserSequence([position, wordSpace, lodial, wordSpace, fact, AND, possibleWordSpace]);
+var factPhrase = new SmartParserSequence([continuingFactPhrase, semiFactPhrase, OR, fullFactPhrase, COLLATING], 'FACT-PHRASE');
+
+var stack = [], parser = new SmartParser("FOR THIS MATCH OF THE MATCHING");
+
+parser.parse(factPhrase, stack);
+console.log(stack);
+```
