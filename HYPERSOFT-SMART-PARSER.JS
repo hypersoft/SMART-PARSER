@@ -218,8 +218,8 @@ SmartParserSequence.prototype = {
 						}	
 					}
 				}
-				state.track();
 				iteration++;
+				if (this.collating) state.track();
 			} while (this.collating && match);
 		} else { // for the or-operations
 			var iteration = 1, match = false;
@@ -256,7 +256,7 @@ SmartParserSequence.prototype = {
 					throw new ParsingFault(state.status+'; WITH THE PARSING OF THE '+state.fault+'.');
 				}
 				iteration++;
-				state.track();
+				if (this.collating) state.track();
 			} while (this.collating && match);
 		}
 		
