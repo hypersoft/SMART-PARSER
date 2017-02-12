@@ -149,6 +149,7 @@ SmartParserRule.prototype = {
 		} else { // for the logical/mathematical-compound-sequence-claim [regular expression]
 			var match = this.rule.exec(state.stream);
 			if (match) {
+				var text = match[0];
 				if (this.verification) {
 					if (this.verification === smartParserFunctionRule)
 						match = this.verify.call(this.functionParent || this, state, stack, this, match);
@@ -162,7 +163,7 @@ SmartParserRule.prototype = {
 							return null;
 						}			
 					else {
-						var tokenClaim = match[0];
+						var tokenClaim = text;
 						match = this.verify.exec(tokenClaim);
 						if (! match) {
 							if (this.faultTokenizer) tokenClaim = this.faultToken(state);
@@ -170,13 +171,14 @@ SmartParserRule.prototype = {
 							state.track(state.path.pop()+tokenClaim);
 							return null;
 						}
-						match = match[0];
+						text = match[0];
 					}
 				}
-				var token = new SmartParserToken(state, match, this);
+				var token = new SmartParserToken(state, text, this);
 				if (stack) { stack.push(token); return true; }
 				return token;
-			}		}
+			}
+		}
 		return null;
 	}
 }
