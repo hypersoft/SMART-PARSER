@@ -163,7 +163,8 @@ SmartParserToken.prototype = {
 }
 
 var OR = 'OR',
-	AND = 'AND';
+	AND = 'AND',
+	COLLATING = '...';
 
 function SmartParserSequence(list, name) { // for the sequencing of the rules
 
@@ -171,7 +172,14 @@ function SmartParserSequence(list, name) { // for the sequencing of the rules
 
 	if (list.length < 3)
 		throw new Error('CREATE: SMART-PARSER-SEQUENCE: MINIMUM-SEQUENCING: 2-RULES AND 1-METHOD.');
-		
+	
+	if (list[list.length - 1] === COLLATING) {
+		list.pop();
+		this.collating = true;
+		if (name === "" || name === undefined)
+			throw new ReferenceError('CREATE: COLLATING-SMART-PARSER-SEQUENCE: MISSING-ITERATIVE-NAME-SPECIFICATION.')
+	}
+	
 	this.method = list.splice(list.length-2, 1)[0];
 	if (this.method != OR && this.method != AND)
 		throw new Error('CREATE: SMART-PARSER-SEQUENCE: WRONG-METHOD-TYPE.');
@@ -183,7 +191,7 @@ function SmartParserSequence(list, name) { // for the sequencing of the rules
 		else if (element.constructor !== SmartParserSequence && element.constructor != SmartParserRule)
 			throw new Error('CREATE: SMART-PARSER-SEQUENCE: LIST-ELEMENT: '+location+': WRONG-ELEMENT-TYPE.');
 	}
-	
+		
 	this.list = list,
 	this.name = name;
 	
@@ -195,36 +203,63 @@ SmartParserSequence.prototype = {
 	match: function(state, stack){ // for the matching of the rules
 		if (this.name) state.track(this);
 		if (this.method === AND) { // for the and-operations
-			for (var item = 0; item < this.list.length; item++) {
-				var rule = this.list[item];
-				if (! rule.match(state, stack))
-					throw new ParsingFault(state.status+'; WITH THE PARSING OF THE '+state.fault+'.');
-			}
-		} else { // for the or-operations
-			var item = 0, length = this.list.length, match;
-			var position = state.clone, trial = [];
-			for (; item < length; item++) {
-				var rule = this.list[item];
-				try {
-					if (match = rule.match(position, trial)) {
-						position.synchronize(state);
-						Array.prototype.push.apply(stack, trial);
-						break;
-					}
-				} catch (matchError) {
-					if (item === (length - 1)){
-						position.synchronize(state);
-						state.path = position.path.slice(0);
-					} else {
-					position = state.clone;
-					trial = [];
-					continue;
+			var iteration = 1, match = false;
+			do {
+				if (this.collating) {
+					state.track('ITERATION('+iteration+')');
+				}
+				for (var item = 0; item < this.list.length; item++) {
+					var rule = this.list[item];
+					if (! (match = rule.match(state, stack))) {
+						if (iteration === 1) throw new ParsingFault(state.status+'; WITH THE PARSING OF THE '+state.fault+'.');
+						else {
+							state.track();
+							break;
+						}	
 					}
 				}
-			}
-			if (! match )
-				throw new ParsingFault(state.status+'; WITH THE PARSING OF THE '+state.fault+'.');
-		}	
+				state.track();
+				iteration++;
+			} while (this.collating && match);
+		} else { // for the or-operations
+			var iteration = 1, match = false;
+			collating: do {
+				if (this.collating) {
+					state.track('ITERATION('+iteration+')');
+				}
+				var loop = 0, item = 0, length = this.list.length;
+				var position = state.clone, trial = [];
+				for (; item < length; item++) {
+					var rule = this.list[item];
+					try {
+						if (match = rule.match(position, trial)) {
+							position.synchronize(state);
+							Array.prototype.push.apply(stack, trial);
+							break;
+						}
+					} catch (matchError) {
+						if (item === (length - 1)){
+							if (iteration > 1) {
+								match = false;
+								break;
+							}
+							position.synchronize(state);
+							state.path = position.path.slice(0);
+						} else {
+							position = state.clone;
+							trial = [];
+							continue;
+						}
+					}
+				}
+				if (! match && iteration == 1) {
+					throw new ParsingFault(state.status+'; WITH THE PARSING OF THE '+state.fault+'.');
+				}
+				iteration++;
+				state.track();
+			} while (this.collating && match);
+		}
+		
 		if (this.name) state.track() // for the voiding of the self-blaming
 		return true;
 	}
@@ -266,7 +301,7 @@ SmartParser.prototype = {
 		}
 		SmartParserState.prototype.synchronize.call(thing, this.state);
 		if (thing.path) { // for the synchronization of a possible-path.
-			state.path = thing.path.slice(0);
+			this.state.path = thing.path.slice(0);
 		}
 	},
 	"parse": function(sequence, stack) { // for the verbose-matching with a sequence or rule
