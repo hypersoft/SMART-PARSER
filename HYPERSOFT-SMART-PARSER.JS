@@ -151,7 +151,7 @@ SmartParserRule.prototype = {
 			if (match) {
 				if (this.verification) {
 					if (this.verification === smartParserFunctionRule)
-						match = this.verify(state, stack, this, match);
+						match = this.verify.call(this.functionParent || this, state, stack, this, match);
 					else {
 						var tokenClaim = match[0];
 						match = this.verify.exec(tokenClaim);
