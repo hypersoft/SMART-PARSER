@@ -140,9 +140,10 @@ var position = SmartParserRule([
 ], 'POSITION');
 
 var lodial = SmartParserRule([
-	/^[^\s]+/, // for the keyword-tokenization with the automatic-token-fault-tracking
+	/^[^\s]+/,
 	/^(ANY|AN|A|MY|YOUR|HER|HIS|OUR|THEIR|THIS|THAT|THESE|THE|THOSE|OTHER)$/i // for the validation
-], fact, 'LODIAL');
+], fact, // for the manual-keyword-tokenization of the fault-tracking
+'LODIAL');
 
 
 var possibleWordSpace = new SmartParserSequence([wordSpace, OR, NOTHING], 'WORD-BREAK');
