@@ -69,13 +69,6 @@ var smartParserFunctionRule = 'function',
 function SmartParserRule(rule, name) {
 
 	if (this.constructor !== SmartParserRule) return new SmartParserRule(rule, name);
-	
-	if (arguments.length === 3) {
-		this.faultTokenizer = arguments[1];
-		if (typeof this.faultTokenzier != smartParserCompoundRule && this.faultTokenizer.constructor != SmartParserRule)
-			throw new Error('CREATE: SMART-PARSER-RULE: WRONG-FAULT-TOKENIZATION-TYPE.');
-		name = arguments[2];
-	}
 
 	// :argument(1): stack: [Function, Object]: for the function-rule with a parent-"object".	
 	if (typeof rule === smartParserCompoundRule && rule.constructor === Array && rule.length === 2 && typeof rule[0] === smartParserFunctionRule && typeof rule[1] === smartParserCompoundRule) {
@@ -112,13 +105,6 @@ function SmartParserRule(rule, name) {
 SmartParserRule.prototype = {
 	constructor: SmartParserRule,
 	toString: function(){return this.name;},
-	faultToken: function(state) {
-		if (this.faultTokenizer) {
-			var trial = [], position = state.clone;
-			var token = this.faultTokenizer.match(position, trial);
-			return ": FAULT: `"+token.data+"'";
-		}
-	},
 	match: function(state, stack) { // for the matching of the rule with the current-state
 		state.track(this.name);
 		if (this.method === smartParserFunctionRule) { // for the function-type
@@ -141,10 +127,6 @@ SmartParserRule.prototype = {
 				var token = new SmartParserToken(state, data, this);
 				if (stack) { stack.push(token); return true; }
 				return token;
-			} else {
-				if (this.faultTokenizer) data = this.faultToken(state);
-				else data = ": FAULT: `"+data+"'";
-				state.track(state.path.pop()+": `"+this.rule+"'"+data);
 			}
 		} else { // for the logical/mathematical-compound-sequence-claim [regular expression]
 			var match = this.rule.exec(state.stream);
@@ -157,18 +139,13 @@ SmartParserRule.prototype = {
 						// with a parent-"object" for the calling of the rule-verification-function as a method
 						// of the parent-"object".
 						if (! match) {
-							if (this.faultTokenizer) tokenClaim = this.faultToken(state);
-							else tokenClaim = ": FAULT: `"+tokenClaim+"'";
-							state.track(state.path.pop()+tokenClaim);
+						  state.track(text);
 							return null;
 						}			
 					else {
-						var tokenClaim = text;
-						match = this.verify.exec(tokenClaim);
+						match = this.verify.exec(text);
 						if (! match) {
-							if (this.faultTokenizer) tokenClaim = this.faultToken(state);
-							else tokenClaim = ": FAULT: `"+tokenClaim+"'";
-							state.track(state.path.pop()+tokenClaim);
+						  state.track(text);
 							return null;
 						}
 						text = match[0];
