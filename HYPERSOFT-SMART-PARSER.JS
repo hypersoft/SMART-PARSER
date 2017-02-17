@@ -1,5 +1,7 @@
 // of the quantum-communications-technology: smart
 
+var smartParserParsingClaim = '; WITH THE PARSING OF THE ';
+
 function ParsingFault(message) { // for the claiming of a parsing-fault
   this.name = 'PARSING-FAULT';
   this.message = message || 'PARSING-FAULT';
@@ -163,6 +165,7 @@ SmartParserRule.prototype = {
 function SmartParserToken(state, data, selector) { // for the capturing of the data and metrics within the current-state
 	state.synchronize(this); // for the copying of the state's-metrics
 	this.data = data, this.selector = selector;
+	this.position = state.status; // for the knowledge-record of the where with this data for this selector
 	this.claim = state.fault; // for the knowledge-record of the how with this data for this selector
 	state.scan(data.length); // for the moving of the location of the stream-state
 	state.track(); // for the voiding of the selector-blame
@@ -170,16 +173,20 @@ function SmartParserToken(state, data, selector) { // for the capturing of the d
 
 SmartParserToken.prototype = {
 	constructor: SmartParserToken,
+	get parsingFault() { // for the throwing of the token as a parsing-fault.
+    return new ParsingFault(this.position+smartParserParsingClaim+this.claim+': `'+this.data+'\'.');
+	},
 	toString: function(){return this.data;}, // for the treatment of this compound as a string
-	combine: function(stack) { // for the lossy-compiling of a single-token with the multiple-tokens
+	combine: function(stack, withTheClaim) { // for the lossy-compiling of a single-token with the multiple-tokens
 		// for the claim of the lossy with this operation is for the loss
 		// of the selector-field-data and sub-item-claim-field-data
 		var location;
+		if (withTheClaim) this.claim = withTheClaim; // for the modification of this claim.
 		for (location = 0; location < stack.length; location++) {
 			var element = stack[location];
 			this.data += element.data;
 			this.selector += ': '+element.selector;
-		}	
+		}
 	}
 }
 
@@ -232,7 +239,7 @@ SmartParserSequence.prototype = {
 				for (var item = 0; item < this.list.length; item++) {
 					var rule = this.list[item];
 					if (! (match = rule.match(state, stack))) {
-						if (iteration === 1) throw new ParsingFault(state.status+'; WITH THE PARSING OF THE '+state.fault+'.');
+						if (iteration === 1) throw new ParsingFault(state.status+smartParserParsingClaim+state.fault+'.');
 						else {
 							state.track();
 							break;
@@ -274,7 +281,7 @@ SmartParserSequence.prototype = {
 					}
 				}
 				if (! match && iteration == 1) {
-					throw new ParsingFault(state.status+'; WITH THE PARSING OF THE '+state.fault+'.');
+					throw new ParsingFault(state.status+smartParserParsingClaim+state.fault+'.');
 				}
 				iteration++;
 				if (this.collating) state.track();
@@ -329,7 +336,7 @@ SmartParser.prototype = {
 		// for the getting of the parsings is with the supplying of a stack
 		var position = this.state.clone; // for the shadow-state
 		if (sequence.match(position, (stack || []))) this.synchronizeStateWith(position);
-		else throw new ParsingFault(position.status+'; WITH THE PARSING OF THE '+position.fault+'.');
+		else throw new ParsingFault(position.status+smartParserParsingClaim+position.fault+'.');
 		return true;
 	},
 	"try": function(sequence, stack) { // for the trying of a matching with a sequence or rule
@@ -345,9 +352,9 @@ SmartParser.prototype = {
 	merge: function(stack1, stack2) { // for the joining of the two-stacks as the one-stack
 		Array.prototype.push.apply(stack1, stack2);
 	},
-	flatten: function(stack) { // for the making of a single-smart-parser-token with the elements of a stack
+	flatten: function(stack, withTheClaim) { // for the making of a single-smart-parser-token with the elements of a stack
 		var root = stack[0], elements = stack.splice(1);
-		root.combine(elements);
+		root.combine(elements, withTheClaim);
 		return root;
 	}
 }
