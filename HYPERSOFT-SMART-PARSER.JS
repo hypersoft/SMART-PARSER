@@ -23,6 +23,9 @@ var jsNumberType = 'number';
 
 SmartParserState.prototype = {
 	constructor: SmartParserState,
+	get endOfStream() { // for the checking of the operations-completion
+		return this.location == this.data.length;
+	},
 	synchronize: function(thing) { // for the synchronization of this state's-metrics
 		// :number-type-synchronization-only: voiding: "undefined" and others [:SmartParserState.prototype.synchronize.call(): safety-measure]
 		if (typeof this.location === jsNumberType) thing.location = this.location;
@@ -109,6 +112,7 @@ SmartParserRule.prototype = {
 	toString: function(){return this.name;},
 	match: function(state, stack) { // for the matching of the rule with the current-state
 		state.track(this.name);
+		if (state.endOfStream) state.track(state.path.pop()+' AS THE END OF THE STREAM');
 		if (this.method === smartParserFunctionRule) { // for the function-type
 			var match = this.rule.call(this.functionParent || this, state, stack, this);
 			// :"returning": text: match or null; arguments: state, stack, rule;
@@ -303,7 +307,7 @@ function SmartParser(data, tabSpaces) { // for the creation of a parser-compound
 SmartParser.prototype = {
 	constructor: SmartParser,
 	get endOfStream() { // for the checking of the operations-completion
-		return this.state.location == this.state.data.length;
+		return this.state.endOfStream;
 	},
 	load: function(data, tabSpaces) { // for the taking of the new-data
 		delete this.state;
