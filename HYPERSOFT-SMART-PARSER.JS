@@ -66,42 +66,32 @@ SmartParserState.prototype = {
 	}
 }
 
-var smartParserFunctionRule = 'function',
-	smartParserStringRule = 'string',
-	smartParserCompoundRule = 'object';
+var smartParserSequencingFunction = 'function',
+  	smartParserStringRule = 'string',
+  	smartParserCompoundRule = 'object';
 
 
 function SmartParserRule(rule, name) {
 
 	if (this.constructor !== SmartParserRule) return new SmartParserRule(rule, name);
 
-	// :argument(1): stack: [Function, Object]: for the function-rule with a parent-"object".	
-	if (typeof rule === smartParserCompoundRule && rule.constructor === Array && rule.length === 2 && typeof rule[0] === smartParserFunctionRule && typeof rule[1] === smartParserCompoundRule) {
-		this.functionParent = rule[1];
-		rule = rule[0];
-	}
-	
 	this.method = typeof rule;
 	
 	this.rule = rule, this.name = name
 
 	if (this.method == smartParserCompoundRule) {
 		if (rule.constructor === Array) {
-			// for the rule-type-validation: ["Regular Expression", AND "Regular Expression", OR Function]
 			this.rule = rule[0];
 			this.verification = typeof rule[1];
 			this.verify = rule[1];
-			if (this.verification != smartParserFunctionRule && this.verification != smartParserCompoundRule)
-				throw new Error('CREATE: SMART-PARSER-RULE: WRONG-RULE-VERIFICATION-TYPE.');
-			if (this.verification === smartParserCompoundRule && this.verify.constructor != RegExp)
+			if (this.verification != smartParserCompoundRule || this.verify.constructor != RegExp)
 				throw new Error('CREATE: SMART-PARSER-RULE: WRONG-RULE-VERIFICATION-TYPE.');
 		}
 	}
 		
-	// for the rule-type-validation: "Regular Expression", Function, OR String
 	if (this.method == smartParserCompoundRule) {
 		if (this.rule.constructor != RegExp) throw new Error('CREATE: SMART-PARSER-RULE: WRONG-RULE-TYPE.');
-	} else if (this.method !== smartParserStringRule && this.method !== smartParserFunctionRule) {
+	} else if (this.method !== smartParserStringRule) {
 		throw new Error('CREATE: SMART-PARSER-RULE: WRONG-RULE-TYPE.');
 	}
 
@@ -113,21 +103,7 @@ SmartParserRule.prototype = {
 	match: function(state, stack) { // for the matching of the rule with the current-state
 		state.track(this.name);
 		if (state.endOfStream) state.track(state.path.pop()+' AS THE END OF THE STREAM');
-		if (this.method === smartParserFunctionRule) { // for the function-type
-			var match = this.rule.call(this.functionParent || this, state, stack, this);
-			// :"returning": text: match or null; arguments: state, stack, rule;
-			// with a parent-"object" for the calling of the function-rule as a method
-			// of the parent-"object".
-			if (match) {
-				var token = new SmartParserToken(state, match, this);
-				if (stack) { stack.push(token); return true; }
-				return token;
-			} else {
-				if (this.faultTokenizer) {
-					state.track(state.path.pop()+this.faultToken(state));
-				}
-			}
-		} else if (this.method === smartParserStringRule) { // for the string-type
+		if (this.method === smartParserStringRule) { // for the string-type
 			var data = state.streamPart(this.rule.length);
 			if (data === this.rule) {
 				var token = new SmartParserToken(state, data, this);
@@ -139,23 +115,12 @@ SmartParserRule.prototype = {
 			if (match) {
 				var text = match[0];
 				if (this.verification) {
-					if (this.verification === smartParserFunctionRule)
-						match = this.verify.call(this.functionParent || this, state, stack, this, match);
-						// :"returning": text: match or null; arguments: state, stack, rule, match[];
-						// with a parent-"object" for the calling of the rule-verification-function as a method
-						// of the parent-"object".
-						if (! match) {
-						  state.track(text);
-							return null;
-						}			
-					else {
-						match = this.verify.exec(text);
-						if (! match) {
-						  state.track(text);
-							return null;
-						}
-						text = match[0];
+					match = this.verify.exec(text);
+					if (! match) {
+					  state.track(text);
+						return null;
 					}
+					text = match[0];
 				}
 				var token = new SmartParserToken(state, text, this);
 				if (stack) { stack.push(token); return true; }
@@ -182,7 +147,6 @@ SmartParserBatchRule.selector = /^[^\s]+/;
 function SmartParserToken(state, data, selector) { // for the capturing of the data and metrics within the current-state
 	state.synchronize(this); // for the copying of the state's-metrics
 	this.data = data, this.selector = selector;
-	this.position = state.status; // for the knowledge-record of the where with this data for this selector
 	this.claim = state.fault; // for the knowledge-record of the how with this data for this selector
 	state.scan(data.length); // for the moving of the location of the stream-state
 	state.track(); // for the voiding of the selector-blame
@@ -190,6 +154,9 @@ function SmartParserToken(state, data, selector) { // for the capturing of the d
 
 SmartParserToken.prototype = {
 	constructor: SmartParserToken,
+	get position() { // for the knowledge-record of the where with this data for this selector
+	  return 'LINE: '+this.line+', COLUMN: '+this.column;
+	},
 	get parsingFault() { // for the throwing of the token as a parsing-fault.
     return new ParsingFault(this.position+smartParserParsingClaim+this.claim+': `'+this.data+'\'.');
 	},
@@ -215,6 +182,25 @@ function SmartParserSequence(list, name) { // for the sequencing of the rules
 
 	if (this.constructor != SmartParserSequence) return new SmartParserSequence(list, name);
 
+  if (typeof list === smartParserSequencingFunction) { // for a function with the manual-creating of the tokens
+    this.method = smartParserSequencingFunction;
+    this.match = list; // for the Boolean:function(state, stack)
+    this.name = name;
+    return;
+    /* 
+      : "SequencingFunction does not have to create anything, it could simply validate
+        a stack per-se. However [you choose an implementation], your function is
+        'responsible' for the tracking of itself, and for throwing any faults.
+        See the match function of this 'prototype' for more direction."
+        
+      ['this' in the function context is this: SmartParserSequence]
+
+      : "If you need 'access' to a component, place it on this Sequence.
+        Other JavaScript-tricks such as nested function creation for
+        'private object access' are possible."      
+    */
+  }
+  
 	if (list.length < 3)
 		throw new Error('CREATE: SMART-PARSER-SEQUENCE: MINIMUM-SEQUENCING: 2-RULES AND 1-METHOD.');
 	
