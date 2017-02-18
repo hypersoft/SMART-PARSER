@@ -166,18 +166,18 @@ SmartParserRule.prototype = {
 	}
 }
 
-function SmartParserBatchRule(list, splitter, flags, name) { // for the creation of a rule with a list of the constant-strings
+function SmartParserBatchRule(selector, list, splitter, flags, name) { // for the creation of a rule with a list of the constant-strings
   // for the list, splitter, flags and name of the caller's-variables are of a plain-string.
   var words = list.split(splitter);
   // for the each of the words are with the sanitization of the logical/compound-mathematical-sequences
   for (w in words) words[w] = SmartParserBatchRule.sanitize(words[w]);
   var claim = new RegExp("^("+words.join('|')+")$", flags);
-  return new SmartParserRule([SmartParserBatchRule.tokenizer, claim], name);
+  return new SmartParserRule([selector || SmartParserBatchRule.selector, claim], name);
 }
 SmartParserBatchRule.sanitize = function(string) {
   return string.replace(/[\\.*+?^${}()|[\]]/g, '\\$&');
 }
-SmartParserBatchRule.tokenizer = /^[^\s]+/;
+SmartParserBatchRule.selector = /^[^\s]+/;
 
 function SmartParserToken(state, data, selector) { // for the capturing of the data and metrics within the current-state
 	state.synchronize(this); // for the copying of the state's-metrics
