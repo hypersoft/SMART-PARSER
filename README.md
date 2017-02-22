@@ -1,6 +1,6 @@
 ## :SMART-PARSER
 
-For the parsing of the possiblities, patterns, and compounds of our digitial-communications-world.
+For the parsing of the possiblities, patterns, and compounds of our digital-communications-world.
 ***
 
 ##### :example-contrivance-case-claim
