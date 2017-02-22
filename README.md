@@ -1,8 +1,9 @@
 ## :SMART-PARSER
 
-for the parsing of the possiblities, patterns, and compounds of our digitial-communications-world.
+For the parsing of the possiblities, patterns, and compounds of our digitial-communications-world.
+***
 
-### for this example of this contrivance-case-claim is for your learning of the basic-usage with the technology.
+##### :example-contrivance-case-claim
 
 ```javascript
 
