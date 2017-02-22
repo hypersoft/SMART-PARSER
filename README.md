@@ -28,3 +28,6 @@ parser.parse(dictionary.number)
 console.log(parser.token);
 
 ```
+
+***
+For the best-usage-testing of this example is with your web-browser's-script-examination-tool. [Tip: Firefox: Ctrl+Shift+K]
