@@ -26,6 +26,21 @@ var dictionary = (function Dictionary(){
   this['opening-square-bracket'] = new SmartParserTerm('[', 'OPENING-SQUARE-BRACKET');
   this['closing-square-bracket'] = new SmartParserTerm(']', 'CLOSING-SQUARE-BRACKET');
 
+  this.shadowBox = function(data, start, finish, singleLine) {
+    var part, closure;
+    if (data[0] !== start.claim) return false;
+    search: for (closure = 1; closure < data.length; closure++) {
+      part = data[closure];
+      if (part === finish.claim) {
+        this.tokenize(++closure); return true;
+      } else if (part === '\\') closure++;
+      else if (singleLine && part === '\n') break search;
+    }
+    this.tokenize(closure);
+    this.parse(finish); // [bang, you're dead]
+    return false;  
+  }
+
   this.box = new SmartParserTerm(function(data) {
     return terms.shadowBox.call(this, data, terms['opening-square-bracket'], terms['closing-square-bracket']);
   }, 'BOXING');
