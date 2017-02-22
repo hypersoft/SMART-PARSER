@@ -25,7 +25,6 @@ SmartParserState.prototype = {
 	  clone.token = this.token.slice(0);
 	  return clone;
 	},
-	get termParent() { return this.claim[this.claim.length - 2]; },
 	get term() { return this.claim[this.claim.length - 1]; }
 }
 
@@ -162,7 +161,7 @@ SmartParserTerm.sanitize = function(string) {
   return string.replace(/[\\.*+?^${}()|[\]]/g, '\\$&');
 }
 
-SmartParserTerm.fromList = function(selector, group, list, mode, name) {
+SmartParserTerm.withList = function(selector, group, list, mode, name) {
   var body = {selector: selector, group: group};
   var items = list.map(function(item){
     return SmartParserTerm.sanitize(item);
