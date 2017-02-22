@@ -75,8 +75,9 @@ SmartParser.prototype = {
 	get metrics() { return "LINE: "+this.line+", COLUMN: "+this.column; },
 	get claim() {
 	  var claim = [];
-	  this.currentState.claim.forEach(function(term) {
-	    claim.push(String(term));
+	  this.currentState.claim.forEach(function(term) { 
+	    var data = String(term);
+	    if (data !== 'undefined') claim.push(String(term));
 	  });
 	  return claim.join(': ');
 	},
@@ -100,7 +101,11 @@ SmartParser.prototype = {
 	  }
 	  return snapshot;
 	},
+	tokenize: function(length) { return new SmartParserToken(this, length); },
 	get token() { return this.currentState.token; },
+	get lastToken() { var theToken = this.currentState.token,
+	  claim = theToken.length -1; return theToken[claim];
+  },
 	parse: function(item) {
 	  var status = item.match(this);
 	  if (! status && ! item.possible) {
