@@ -25,6 +25,7 @@ SmartParserState.prototype = {
 	  clone.token = this.token.slice(0);
 	  return clone;
 	},
+	get termParent() { return this.claim[this.claim.length - 2]; },
 	get term() { return this.claim[this.claim.length - 1]; }
 }
 
@@ -34,15 +35,20 @@ function SmartParser(source, tabColumnWidth) {
 }
 
 SmartParser.prototype = {
-  constructor: SmartParser,
+  constructor: SmartParser, possiblity: 0,
   beginParsingWith: function(term) {
-    var key = this.state.push(this.currentState.clone);
+    if (term.possible) this.possiblity++;
+    this.state.push(this.currentState.clone);
     this.currentState.claim.push(term);
+	  delete this.failure;
   },
   finishParsingWith: function(term, synchronize) {
     if (this.currentState.term != term)
       throw new ReferenceError('SmartParser: Finish-Parsing-Term: WRONG-STATE-CLAIM');
-    if (! synchronize ) this.failure = this.fault;
+    if (synchronize !== true && this.possiblity === 0) {
+      if (! this.failure || term.method === 'OR') this.failure = this.fault;
+    }
+    if (term.possible) this.possiblity--;
     var state = this.state.pop();
     if (synchronize) {
       state.claim.pop(); this.state.pop(); this.state.push(state);
@@ -76,9 +82,9 @@ SmartParser.prototype = {
 	  return claim.join(': ');
 	},
 	get fault() {
-	  var snapshot = {
+	  var snapshot = { term: this.currentState.term,
 	    position: this.sourcePosition, line: this.line, column: this.column,
-	    claim: this.currentState.term.toString(), toString: SmartParser.faultToString
+	    claim: this.claim, toString: SmartParser.faultToString
 	  }
 	  if (this.selection) snapshot.selection = this.selection;
 	  else {
@@ -98,7 +104,7 @@ SmartParser.prototype = {
 	get token() { return this.currentState.token; },
 	parse: function(item) {
 	  var status = item.match(this);
-	  if (! status ) {
+	  if (! status && ! item.possible) {
 	    throw new SmartParserFault(this.failure);
 	  }
 	  return status;
@@ -134,7 +140,7 @@ function SmartParserToken(parser, length) {
 SmartParserToken.prototype = {
   constructor: SmartParserToken,
   toString: function(){ return this.value; },
-  join: function() { // claim, token, ...
+  join: function() { // token, ...
     var argv = Array.from(arguments);
     this.joinAs(this.term, this.snapshot.claim, argv);
   },
@@ -150,6 +156,19 @@ SmartParserToken.prototype = {
 
 function SmartParserTerm(claim, name) {
   this.name = name, this.type = typeof claim, this.claim = claim;
+}
+
+SmartParserTerm.sanitize = function(string) {
+  return string.replace(/[\\.*+?^${}()|[\]]/g, '\\$&');
+}
+
+SmartParserTerm.fromList = function(selector, group, list, mode, name) {
+  var body = {selector: selector, group: group};
+  var items = list.map(function(item){
+    return SmartParserTerm.sanitize(item);
+  });
+  body.validator = RegExp('^('+items.join('|')+')$', mode);
+  return new SmartParserTerm(body, name);
 }
 
 SmartParserTerm.prototype = {
@@ -177,11 +196,7 @@ SmartParserTerm.prototype = {
     parser.finishParsingWith(this, match);
     return match;
   },
-  toString: function() {
-    var claim = this.name;
-    if (this.type === 'string') claim = 'CONSTANT: '+claim+': `'+this.claim+"'";
-    return claim;
-  }
+  toString: function() { return this.name; }
 }
 
 function SmartParserSequence(dictionary, claim, name) {
