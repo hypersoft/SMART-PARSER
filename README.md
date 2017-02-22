@@ -30,4 +30,4 @@ console.log(parser.token);
 ```
 
 ***
-For the best-usage-testing of this example is with your web-browser's-script-examination-tool. [Tip: Firefox: Ctrl+Shift+K]
+For the best-usage-testing of this example is with the script-examination-tool of your web-browser. [Tip: Firefox: Ctrl+Shift+K]
