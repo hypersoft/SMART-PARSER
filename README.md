@@ -26,7 +26,13 @@ var dictionary = (function Dictionary(){
   this['opening-square-bracket'] = new SmartParserTerm('[', 'OPENING-SQUARE-BRACKET');
   this['closing-square-bracket'] = new SmartParserTerm(']', 'CLOSING-SQUARE-BRACKET');
 
-  this.shadowBox = function(data, start, finish, singleLine) {
+  // :list-creation
+  this.fruit = SmartParserTerm.withList(/^[a-z]+/i, 0,
+    ['APPLE', 'ORANGE', 'PEAR', 'PINEAPPLE'], 'i',
+    'FRUIT'
+  );
+
+this.shadowBox = function(data, start, finish, singleLine) {
     var part, closure;
     if (data[0] !== start.claim) return false;
     search: for (closure = 1; closure < data.length; closure++) {
@@ -41,6 +47,7 @@ var dictionary = (function Dictionary(){
     return false;  
   }
 
+  // for the showing of the use-case-flexibility with the shadowBox-function
   this.box = new SmartParserTerm(function(data) {
     return terms.shadowBox.call(this, data, terms['opening-square-bracket'], terms['closing-square-bracket']);
   }, 'BOXING');
@@ -48,10 +55,7 @@ var dictionary = (function Dictionary(){
   this.quotation = new SmartParserTerm(function(data) {
     return terms.shadowBox.call(this, data, terms['double-quotation-marking'], terms['double-quotation-marking'], true);
   }, 'QUOTATION');
-
-  this.citation = new SmartParserTerm(function(data) {
-    return terms.shadowBox.call(this, data, terms['opening-parenthesis'], terms['closing-parenthesis'], true);
-  }, 'CITATION');
+  
   return this;
   
 }).call({});
@@ -60,10 +64,14 @@ parser = new SmartParser('-123.321');
 parser.parse(dictionary.number)
 console.log(parser.token);
 
+// for the example of the selection-validation-list-creation
+parser = new SmartParser('pineapple');
+parser.parse(dictionary.fruit)
+console.log(parser.token);
+
 // for the example of the boxing with the quotes and line-breaking-fault
 parser = new SmartParser('"123\n321"');
-parser.parse(dictionary.quotation);
-console.log(parser.token);
+parser.parse(dictionary.quotation); // :dead-man's-curve
 
 ```
 
