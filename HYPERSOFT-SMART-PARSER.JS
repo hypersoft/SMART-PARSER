@@ -206,6 +206,7 @@ SmartParserTerm.prototype = {
           } 
           if (! match ) this.selection = capture; // for the logging of the false-capture
         } else { // with the selection-only
+          match = true;
           new SmartParserToken(parser, capture.length)
         }
       } // selection-failure
