@@ -193,15 +193,22 @@ SmartParserTerm.prototype = {
       match = (parser.slice(length) === (this.claim));
       if (match) new SmartParserToken(parser, length);
     } else if (this.type === 'object') {
-      var sx = this.claim.selector, vx = this.claim.validator, nx = this.claim.group || 0;
+      var sx = this.claim.selector, vx = this.claim.validator, nx = this.claim.group || 0,
+      fx = (typeof vx === 'function');
       var selection = sx.exec(parser.data);
       if (selection) {
         var capture = selection[nx];
-        if (vx) selection = vx.exec(capture), nx = 0;
-        match = (selection != null);
-        if (! match ) this.selection = capture;
-      }
-      if (match) new SmartParserToken(parser, selection[nx].length);
+        if (vx) { // with a validator
+          if ( fx ) match = vx.call(parser, capture); // of a boolean-function-creating-own-tokens
+          else { // of a compound-claim
+            selection = vx.exec(capture); match = (selection != null);
+            if (match) new SmartParserToken(parser, selection[0].length)
+          } 
+          if (! match ) this.selection = capture; // for the logging of the false-capture
+        } else { // with the selection-only
+          new SmartParserToken(parser, capture.length)
+        }
+      } // selection-failure
     }
     parser.finishParsingWith(this, match);
     return match;
