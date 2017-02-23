@@ -20,17 +20,16 @@ var dictionary = (function Dictionary(){
   this.fraction = new SmartParserSequence(this, 'possible: decimal-point and digits', 'FRACTION');
   this.number = new SmartParserSequence(this, 'join: sign, digits and fraction', 'NUMBER');
   
-  this['double-quotation-marking'] = new SmartParserTerm('"', 'DOUBLE-QUOTATION-MARKING');
-  this['opening-parenthesis'] = new SmartParserTerm('(', 'OPENING-PARENTHESIS');
-  this['closing-parenthesis'] = new SmartParserTerm(')', 'CLOSING-PARENTHESIS');
-  this['opening-square-bracket'] = new SmartParserTerm('[', 'OPENING-SQUARE-BRACKET');
-  this['closing-square-bracket'] = new SmartParserTerm(']', 'CLOSING-SQUARE-BRACKET');
-
-  // :list-creation
-  this.fruit = SmartParserTerm.withList(/^[a-z]+/i, 0,
-    ['APPLE', 'ORANGE', 'PEAR', 'PINEAPPLE'], 'i',
+  // :simple-list-creation
+  this.fruit = SmartParserTerm.withList(/^[a-z]+/i, // :selector
+    0, // for this value with the zero is for the match-group within the selector[=must be a head-match-group]
+    ['APPLE', 'ORANGE', 'PEAR', 'PINEAPPLE'], 'i', // for the list as the compound-claim: /^(1|2|3|4)$/i
     'FRUIT'
   );
+
+  this['opening-square-bracket'] = new SmartParserTerm('[', 'OPENING-SQUARE-BRACKET');
+  this['closing-square-bracket'] = new SmartParserTerm(']', 'CLOSING-SQUARE-BRACKET');
+  this['double-quotation-marking'] = new SmartParserTerm('"', 'DOUBLE-QUOTATION-MARKING');
 
 this.shadowBox = function(data, start, finish, singleLine) {
     var part, closure;
