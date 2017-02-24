@@ -79,7 +79,7 @@ SmartParser.prototype = {
 	    var data = String(term);
 	    if (data !== 'undefined') claim.push(String(term));
 	  });
-	  return claim.join(': ');
+	  return claim.join('-');
 	},
 	get fault() {
 	  var snapshot = { term: this.currentState.term,
@@ -107,8 +107,11 @@ SmartParser.prototype = {
 	  claim = theToken.length -1; return theToken[claim];
   },
 	parse: function(dictionary, item) {
-	  if (item) item = dictionary[item];
-	  else item = dictionary;
+	  if (item) {
+	    var script = item; item = dictionary[item];
+	    if (! item && /[ :]/g.exec(script))
+	      item = new SmartParserSequence(dictionary, script);
+	  } else item = dictionary;
 	  var status = item.match(this);
 	  if (! status && ! item.possible) {
 	    throw new SmartParserFault(this.failure);
@@ -116,17 +119,23 @@ SmartParser.prototype = {
 	  return status;
 	},
 	check: function(dictionary, item) {
-	  if (item) item = dictionary[item];
-	  else item = dictionary;
-	  var theClaim = 'parser: match: check';
+	  if (item) {
+	    var script = item; item = dictionary[item];
+	    if (! item && /[ :]/g.exec(script))
+	      item = new SmartParserSequence(dictionary, script);
+	  } else item = dictionary;
+	  var theClaim = 'parser-match-check';
 	  this.beginParsingWith(theClaim);
     var status = item.match(this);	  
 	  this.finishParsingWith(theClaim);
 	  return status;
 	},
 	try: function(dictionary, item) {
-	  if (item) item = dictionary[item];
-	  else item = dictionary;
+	  if (item) {
+	    var script = item; item = dictionary[item];
+	    if (! item && /[ :]/g.exec(script))
+	      item = new SmartParserSequence(dictionary, script);
+	  } else item = dictionary;
     var status = item.match(this);	  
     return status;
 	}
@@ -134,7 +143,7 @@ SmartParser.prototype = {
 }
 
 SmartParser.faultToString = function() {
-  return "LINE: "+this.line+", COLUMN: "+this.column + '; WITH THE PARSING: ' + this.claim + (this.selection?" AND FINDING: "+((this.selection===smartParserEndOfSource)?this.selection:"`"+this.selection+"'"):'');
+  return "LINE: "+this.line+", COLUMN: "+this.column + '; WITH THE PARSING OF THE ' + this.claim + (this.selection?" AND FINDING: "+((this.selection===smartParserEndOfSource)?this.selection:"`"+this.selection+"'"):'');
 }
 
 SmartParser.snapshotToString = function() {
@@ -155,12 +164,14 @@ SmartParserToken.prototype = {
     this.joinAs(this.term, this.snapshot.claim, argv);
   },
   joinAs: function(term, claim, stack) { // term, claim, [tokens]
-    var self = this;
+    var self = this, claims = [this.snapshot.claim];
     this.term = term;
-    this.snapshot.claim = claim;
     stack.forEach(function(token){
       self.value += token.value;
+      claims.push(token.snapshot.claim);
     });
+    var rootMatch = new RegExp(claim+'-', 'g'), final = claims.pop();
+    this.snapshot.claim = (claim+': '+claims.join(', ').replace(rootMatch, '')+' AND '+final.replace(rootMatch, ''));
   }
 }
 
@@ -218,24 +229,30 @@ SmartParserTerm.prototype = {
 }
 
 function SmartParserSequence(dictionary, claim, name) {
-  var sequence = claim.replace(/,/g, '').split(' ');
-  while(check = /^(possible|join|collate)\:$/i.exec(sequence[0])) {
-    this[check[1]] = true; sequence.shift();
-  }
-  this.source = claim;
-  var method = sequence.length - 2;
-  if (sequence.length > 2 && /^(and|or)/i.exec(sequence[method])) {
-    this.method = String.toUpperCase(sequence.splice(method, 1)[0]);
-  }
-  this.sequence = sequence, this.dictionary = dictionary, this.name = name;
-  sequence.forEach(function(term){
-    if (! dictionary[term] )
-      throw new ReferenceError('SmartParserSequence: MISSING-DICTIONARY-KEY: `'+term+"'");
-  });
+  this.dictionary = dictionary;
+  this.configureAs(claim, name);
 }
 
 SmartParserSequence.prototype = {
   constructor: SmartParserSequence,
+  configureAs: function(claim, name) { // for the creation and modification.
+    delete this.possible, this.join, this.collate, this.method;
+    var sequence = claim.replace(/,/g, '').split(' ');
+    while(check = /^(possible|join|collate)\:$/i.exec(sequence[0])) {
+      this[check[1]] = true; sequence.shift();
+    }
+    this.source = claim;
+    var method = sequence.length - 2;
+    if (sequence.length > 2 && /^(and|or)/i.exec(sequence[method])) {
+      this.method = String.toUpperCase(sequence.splice(method, 1)[0]);
+    }
+    this.sequence = sequence, this.name = name;
+    var self = this;
+    sequence.forEach(function(term){
+      if (! self.dictionary[term] )
+        throw new ReferenceError('SmartParserSequence: MISSING-DICTIONARY-KEY: `'+term+"'");
+    });  
+  },
   match: function(parser, iteration) {
     var start = parser.token.length, status = false, length = this.sequence.length;
     var or = (this.method === 'OR'), claim;
@@ -263,3 +280,92 @@ SmartParserSequence.prototype = {
   },
   toString: function() { return this.name; }
 }
+
+SmartParserSymbols = (function SmartParserSymbols(){
+
+  // :ZERO-SEQUENCING: PURE-SYMBOLOGY FOR YOUR USAGE AS A DICTIONARY-MODEL[=PROTOTYPE].
+  // FOR THE VOID OF THE [RE]CREATING OF A "WHEEL"=CONSTANT.
+
+  // :EXAMPLE: yourModel = Object.create(SmartParserSymbols);
+  
+  this['at-sign'] = new SmartParserTerm('@', 'AT-SIGN');
+  this['ampersand'] = new SmartParserTerm('&', 'AMPERSAND');  
+  this['and-sign'] = new SmartParserTerm('&', 'AND-SIGN');
+  this['star-sign'] = new SmartParserTerm('*', 'STAR-SIGN');
+  this['dollar-currency-sign'] = new SmartParserTerm('$', 'DOLLAR-CURRENCY-SIGN');
+  this['percent-sign'] = new SmartParserTerm('%', 'PERCENT-SIGN');
+  this['vertical-bar'] = new SmartParserTerm('|', 'VERTICAL-BAR');
+  this['circumflex'] = new SmartParserTerm('^', 'CIRCUMFLEX');
+  this['section-mark'] = new SmartParserTerm('§', 'SECTION-MARK');
+  this['copyright-sign'] = new SmartParserTerm('©', 'COPYRIGHT-SIGN');
+  this['registration-mark'] = new SmartParserTerm('®', 'REGISTRATION-MARK');
+  this['degree-sign'] = new SmartParserTerm('°', 'DEGREE-SIGN');
+  this['cent-sign'] = new SmartParserTerm('¢', 'CENT-SIGN');
+  this['hash-mark'] = new SmartParserTerm('#', 'HASH-MARK');
+  this['service-mark'] = new SmartParserTerm('℠', 'SERVICE-MARK');
+  this['trade-mark'] = new SmartParserTerm('™', 'TRADE-MARK');
+  this['degrees-celsius-mark'] = new SmartParserTerm('℃', 'DEGREES-CELSIUS-MARK');
+  this['degrees-fahrenheit-mark'] = new SmartParserTerm('℉', 'DEGREES-FAHRENHEIT-MARK');
+  this['care-of-mark'] = new SmartParserTerm('℅', 'CARE-OF-MARK');
+  this['horizontal-ellipsis'] = new SmartParserTerm('…', 'HORIZONTAL-ELLIPSIS');
+  this['vertical-ellipsis'] = new SmartParserTerm('⋮', 'VERTICAL-ELLIPSIS');
+  this['telephone-sign'] = new SmartParserTerm('℡', 'TELEPHONE-SIGN');
+  this['fax-sign'] = new SmartParserTerm('℻', 'FAX-SIGN');
+  this['numero-sign'] = new SmartParserTerm('№', 'NUMERO-SIGN');
+  this['phonorecord-sign'] = new SmartParserTerm('℗', 'PHONORECORD-SIGN');
+  this['middle-dot'] = new SmartParserTerm('·', 'MIDDLE-DOT');
+
+  this.apostrophe = new SmartParserTerm("'", 'APOSTROPHE');
+  this.comma = new SmartParserTerm(',', 'COMMA');
+  this['full-colon'] = new SmartParserTerm(':', 'FULL-COLON');
+  this['semi-colon'] = new SmartParserTerm(';', 'SEMI-COLON');
+  this.tilde = new SmartParserTerm('~', 'TILDE');
+  this.hyphen = new SmartParserTerm('-', 'HYPHEN');
+  this['bang-mark'] = new SmartParserTerm('!', 'BANG-MARK');
+  this['question-mark'] = new SmartParserTerm('?', 'QUESTION-MARK');
+  this['quotation-mark'] = new SmartParserTerm('"', 'QUESTION-MARK');
+  this['full-stop'] = new SmartParserTerm('.', 'FULL-STOP');
+
+  this['less-than-bracket'] = new SmartParserTerm('<', 'LESS-THAN-BRACKET');
+  this['more-than-bracket'] = new SmartParserTerm('>', 'MORE-THAN-BRACKET');
+  this['low-line'] = new SmartParserTerm('_', 'LOW-LINE');
+  this['opening-curly-bracket'] = new SmartParserTerm('{', 'OPENING-CURLY-BRACKET');
+  this['closing-curly-bracket'] = new SmartParserTerm('}', 'CLOSING-CURLY-BRACKET');
+  this['double-quotation-marking'] = new SmartParserTerm('"', 'DOUBLE-QUOTATION-MARKING');
+  this['opening-parenthesis'] = new SmartParserTerm('(', 'OPENING-PARENTHESIS');
+  this['closing-parenthesis'] = new SmartParserTerm(')', 'CLOSING-PARENTHESIS');
+  this['opening-square-bracket'] = new SmartParserTerm('[', 'OPENING-SQUARE-BRACKET');
+  this['closing-square-bracket'] = new SmartParserTerm(']', 'CLOSING-SQUARE-BRACKET');
+
+  this['forward-solidus'] = new SmartParserTerm('/', 'FORWARD-SOLIDUS');
+  this['backward-solidus'] = new SmartParserTerm('\\', 'BACKWARD-SOLIDUS');
+
+  this['lower-case-letter'] = new SmartParserTerm({ selector: /^[a-z]/ }, 'LOWER-CASE-LETTER');
+  this['upper-case-letter'] = new SmartParserTerm({ selector: /^[A-Z]/ }, 'UPPER-CASE-LETTER');
+  
+  this['numeric-digit'] = new SmartParserTerm({ selector: /^[0-9]/ }, 'DIGIT');
+  this['decimal-point'] = new SmartParserTerm('.', 'DECIMAL-POINT'),
+  this['plus-sign'] = new SmartParserTerm('+', 'PLUS-SIGN');
+  this['minus-sign'] = new SmartParserTerm('-', 'MINUS-SIGN');
+  this['equals-sign'] = new SmartParserTerm('=', 'EQUALS-SIGN');
+  this['division-sign'] = new SmartParserTerm('÷', 'DIVISION-SIGN');
+  this['multiplication-sign'] = new SmartParserTerm('×', 'MULTIPLICATION-SIGN');
+  
+  this['single-space'] = new SmartParserTerm(' ', 'SINGLE-SPACE');
+  this['horizontal-tab'] = new SmartParserTerm('\t', 'HORIZONTAL-TAB');
+  this['vertical-tab'] = new SmartParserTerm('\v', 'VERTICAL-TAB');
+  this['end-line'] = new SmartParserTerm('\r', 'END-LINE');
+  this['start-line'] = new SmartParserTerm('\n', 'START-LINE');
+  this['form-feed'] = new SmartParserTerm('\f', 'FORM-FEED');
+
+  this.classify = function(data) {
+    var parser = new SmartParser(data), terms = [];
+    for (key in this) {
+      if (parser.check(this, key)) terms.push(this[key]);
+    }
+    return terms.length?terms:null;
+  }
+
+  return this;
+    
+}).call({});
