@@ -106,11 +106,11 @@ SmartParser.prototype = {
 	get lastToken() { var theToken = this.currentState.token,
 	  claim = theToken.length -1; return theToken[claim];
   },
-	parse: function(dictionary, item) {
+	parse: function(dictionary, item, name) {
 	  if (item) {
 	    var script = item; item = dictionary[item];
 	    if (! item && /[ :]/g.exec(script))
-	      item = new SmartParserSequence(dictionary, script);
+	      item = new SmartParserSequence(dictionary, script, name);
 	  } else item = dictionary;
 	  var status = item.match(this);
 	  if (! status && ! item.possible) {
@@ -130,11 +130,11 @@ SmartParser.prototype = {
 	  this.finishParsingWith(theClaim);
 	  return status;
 	},
-	try: function(dictionary, item) {
+	try: function(dictionary, item, name) {
 	  if (item) {
 	    var script = item; item = dictionary[item];
 	    if (! item && /[ :]/g.exec(script))
-	      item = new SmartParserSequence(dictionary, script);
+	      item = new SmartParserSequence(dictionary, script, name);
 	  } else item = dictionary;
     var status = item.match(this);	  
     return status;
@@ -171,7 +171,8 @@ SmartParserToken.prototype = {
       claims.push(token.snapshot.claim);
     });
     var rootMatch = new RegExp(claim+'-', 'g'), final = claims.pop();
-    this.snapshot.claim = (claim+': '+claims.join(', ').replace(rootMatch, '')+' AND '+final.replace(rootMatch, ''));
+    var op = (claims.length > 1)?' AND ':'';
+    this.snapshot.claim = (claim+': '+claims.join(', ').replace(rootMatch, '')+op+final.replace(rootMatch, ''));
   }
 }
 
